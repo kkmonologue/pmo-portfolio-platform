@@ -32,9 +32,17 @@ def make_pipeline(warehouse: Path, pipelines_dir: Path) -> dlt.Pipeline:
     )
 
 
+FULL_REFRESH_MARKER = ".full_refresh_requested"  # left by `simulator init` when the source is rebuilt
+
+
 def run(source_db: str, warehouse: Path, tracker_dir: Path, full_refresh: bool = False) -> dict[str, int]:
-    """Load both sources; returns rows loaded per table in this run."""
+    """Load both sources; returns rows loaded per table in this run.
+
+    A full refresh happens when asked for, or when a marker file next to the warehouse says the
+    source was rebuilt from scratch (incremental positions from the old source would be wrong)."""
     warehouse.parent.mkdir(parents=True, exist_ok=True)
+    marker = warehouse.parent / FULL_REFRESH_MARKER
+    full_refresh = full_refresh or marker.exists()
     pipeline = make_pipeline(warehouse, warehouse.parent / ".dlt")
     refresh = "drop_sources" if full_refresh else None
     pipeline.run(app_db_source(source_db), refresh=refresh)
@@ -42,6 +50,7 @@ def run(source_db: str, warehouse: Path, tracker_dir: Path, full_refresh: bool =
     if tracker_dir.exists():
         pipeline.run(tracker_rows(tracker_dir), refresh="drop_resources" if full_refresh else None)
         loaded.update(pipeline.last_trace.last_normalize_info.row_counts)
+    marker.unlink(missing_ok=True)
     return {k: v for k, v in loaded.items() if not k.startswith("_dlt")}
 
 

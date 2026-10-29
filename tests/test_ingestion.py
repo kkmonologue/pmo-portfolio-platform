@@ -128,3 +128,18 @@ def test_tracker_layouts_map_to_the_same_columns():
 
 def test_sheet_without_header_is_skipped():
     assert parse_sheet(_sheet([["just a note"], ["nothing else"]])) == ("unknown", [])
+
+
+def test_rebuilt_source_triggers_full_reload(tmp_path):
+    """After `simulator init` rebuilds the source, the next load must not mix old and new rows."""
+    from simulator.api import FULL_REFRESH_MARKER, init_world
+
+    url = f"sqlite:///{tmp_path / 'source.db'}"
+    init_world(url, tmp_path, seed=1, start=dt.date(2025, 1, 1), end=dt.date(2025, 4, 30))
+    assert (tmp_path / FULL_REFRESH_MARKER).exists()
+    run(url, tmp_path / "warehouse.duckdb", tmp_path / "excel")
+    assert not (tmp_path / FULL_REFRESH_MARKER).exists()
+    # rebuild with a different seed and a shorter history: ids get reused, counts shrink
+    init_world(url, tmp_path, seed=2, start=dt.date(2025, 1, 1), end=dt.date(2025, 3, 15))
+    run(url, tmp_path / "warehouse.duckdb", tmp_path / "excel")
+    _counts_match(tmp_path)
