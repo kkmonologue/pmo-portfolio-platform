@@ -1,0 +1,18 @@
+version: 2
+seeds:
+  - name: tracker_status_map
+    description: Old Excel tracker status vocabulary mapped to the system's project statuses.
+    config:
+      column_types: {legacy_status: varchar, mapped_status: varchar, compatible_statuses: varchar, note: varchar}
+    columns:
+      - name: legacy_status
+        data_tests: [unique, not_null]
+      - name: mapped_status
+        description: Single system status, or null when the old label is ambiguous.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [not_started, active, on_hold, to_report, closed, canceled]
+      - name: compatible_statuses
+        description: Pipe-separated system statuses the old label can stand for; used for reconciliation.
+        data_tests: [not_null]

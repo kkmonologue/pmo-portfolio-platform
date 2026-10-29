@@ -1,0 +1,13 @@
+legacy_status,mapped_status,compatible_statuses,note
+In Progress,active,active,
+Ongoing,active,active,
+Backlog,not_started,not_started,
+Not started,not_started,not_started,
+Pending,,not_started|on_hold,ambiguous: used for both not started and paused projects
+On hold,on_hold,on_hold,
+Close report pending,to_report,to_report,
+To report,to_report,to_report,
+Closed,closed,closed,
+Done,closed,closed,
+Canceled,canceled,canceled,
+Cancelled,canceled,canceled,

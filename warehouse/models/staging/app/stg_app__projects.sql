@@ -1,0 +1,23 @@
+select
+    project_id,
+    code as project_code,
+    legacy_code,
+    team_id,
+    section,
+    title as project_title,
+    scope,
+    owner_id,
+    owner_name as owner_name_typed,
+    status,
+    strategic_level,
+    strategic_level is not null as is_strategic,
+    start_date,
+    planned_end,
+    original_end,
+    actual_end,
+    extension_count,
+    planned_end - original_end as days_extended,
+    is_deleted,
+    created_at,
+    updated_at
+from {{ source('app', 'projects') }}

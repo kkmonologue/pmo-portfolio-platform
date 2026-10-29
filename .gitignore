@@ -7,3 +7,8 @@ __pycache__/
 .env
 .dlt/secrets.toml
 .DS_Store
+warehouse/target/
+warehouse/logs/
+warehouse/dbt_packages/
+logs/
+warehouse/.user.yml

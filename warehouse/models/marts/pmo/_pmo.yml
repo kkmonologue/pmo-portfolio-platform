@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: mart_project_risks
+    description: >
+      Risk findings for in-flight projects on the as-of date, using the PMO platform's rules (see the model SQL for
+      the rule list and dbt_project.yml vars for thresholds). Strategic projects are raised one level; paused projects
+      are not scored. is_main_risk marks the one finding a project is labelled with.
+    columns:
+      - name: finding_key
+        data_tests: [unique, not_null]
+      - name: category
+        data_tests:
+          - accepted_values: {arguments: {values: [delivery, schedule, closure, deadline, resource, extension, silence]}}
+      - name: risk_level
+        data_tests:
+          - accepted_values: {arguments: {values: [high, mid, low]}}
+      - name: status
+        data_tests:
+          - accepted_values: {arguments: {values: [not_started, active, to_report]}}
+
+  - name: mart_tracker_reconciliation
+    description: Latest legacy tracker snapshot reconciled against the system, one row per expected project or unmatched tracker row.
+    columns:
+      - name: reconciliation_status
+        data_tests:
+          - accepted_values: {arguments: {values: [ok, status_mismatch, end_date_mismatch, missing_in_tracker, not_in_system]}}
+
+  - name: mart_team_portfolio
+    description: One row per team (front and middle office) with portfolio size, health and reporting discipline.
+    columns:
+      - name: team_code
+        data_tests: [unique, not_null]

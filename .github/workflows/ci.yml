@@ -27,3 +27,9 @@ jobs:
           uv run python -m simulator advance --days 14
           uv run python -m ingestion run
           uv run python -m ingestion status
+      - name: Build and test the warehouse (dbt)
+        run: |
+          uv run dbt build --project-dir warehouse --profiles-dir warehouse
+          uv run python -m simulator advance --days 14
+          uv run python -m ingestion run
+          uv run dbt build --project-dir warehouse --profiles-dir warehouse

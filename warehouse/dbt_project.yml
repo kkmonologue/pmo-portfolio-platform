@@ -1,0 +1,45 @@
+name: pmo_warehouse
+version: "1.0.0"
+config-version: 2
+profile: pmo
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+analysis-paths: ["analyses"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+flags:
+  send_anonymous_usage_stats: false
+
+vars:
+  # Date the risk rules are evaluated on. Empty = the last day present in the data
+  # (the simulator's "today"), so results are reproducible for any backfill.
+  as_of_date: ""
+  # Risk rule thresholds (same defaults as the PMO platform)
+  deadline_warning_days: 14
+  silence_low_days: 30
+  silence_mid_days: 60
+  schedule_gap_mid_pct: 30
+  schedule_gap_high_pct: 50
+  overdue_high_days: 7
+  extensions_mid: 2
+  extensions_high: 4
+
+models:
+  pmo_warehouse:
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: view
+    marts:
+      +schema: marts
+      +materialized: table
+
+seeds:
+  pmo_warehouse:
+    +schema: reference

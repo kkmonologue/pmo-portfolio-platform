@@ -47,7 +47,7 @@ flowchart LR
   O{{Dagster}} -.orchestrates.-> I & T & X
 ```
 
-See [docs/roadmap.md](docs/roadmap.md) for progress. **Done: stage 1 (source simulator) and stage 2 (incremental ingestion into DuckDB).**
+See [docs/roadmap.md](docs/roadmap.md) for progress. **Done: stage 1 (source simulator), stage 2 (incremental ingestion into DuckDB) and stage 3 (dbt warehouse with tests).**
 
 ## Quick start
 
@@ -66,9 +66,20 @@ uv run python -m ingestion run           # first run: everything
 uv run python -m simulator advance --days 7
 uv run python -m ingestion run           # later runs: only what changed
 
+# Build and test the warehouse (staging -> intermediate -> marts)
+uv run dbt build --project-dir warehouse --profiles-dir warehouse
+
 # Option B: Postgres in Docker (macOS / Linux, needs make)
 make sim-init
-make ingest
+make pipeline            # ingest + dbt build
+```
+
+Then query `data/warehouse.duckdb` with any DuckDB client, for example:
+
+```sql
+select team_code, category, risk_level, finding
+from marts.mart_project_risks
+where is_main_risk and risk_level = 'high';
 ```
 
 A backfill produces roughly 400 projects, 1,000 requests, 50 board reviews, 850 milestones, 4,000 bi-weekly updates and 7,500 reminder emails across 23 teams. It also writes the legacy Excel tracker for the last 8 weeks and a ground-truth label for every status update.
@@ -110,8 +121,11 @@ ingestion/
   app_db.py       dlt source: 15 tables, incremental on updated_at, merged on primary key
   tracker.py      dlt resource: weekly Excel tracker, header/layout detection
   __main__.py     `python -m ingestion run | status`
+warehouse/        dbt project: staging -> intermediate -> marts (35 models, 131 tests)
+  models/marts/core   star schema incl. SCD2 project history
+  models/marts/pmo    risk findings, tracker reconciliation, team portfolio
 tests/            simulator rules, full and incremental loads, tracker parsing
-docs/             source data, ingestion, roadmap
+docs/             source data, ingestion, warehouse, roadmap
 ```
 
 ## Tests
@@ -120,7 +134,7 @@ docs/             source data, ingestion, roadmap
 uv run pytest -q
 ```
 
-Besides determinism, the tests check that running the simulation in chunks produces exactly the same data as one long run, and that workflow rules hold: every closed project went through a pre-approved close request and a meeting, every strategic project had a unanimous board vote, every accepted milestone has accepted evidence, and updates belong to the team's own meeting (front or middle office). The ingestion tests check that a full load matches the source, a rerun without changes loads nothing, an incremental run loads exactly the changed rows, and both tracker layouts map to the same columns.
+Besides determinism, the tests check that running the simulation in chunks produces exactly the same data as one long run, and that workflow rules hold: every closed project went through a pre-approved close request and a meeting, every strategic project had a unanimous board vote, every accepted milestone has accepted evidence, and updates belong to the team's own meeting (front or middle office). The ingestion tests check that a full load matches the source, a rerun without changes loads nothing, an incremental run loads exactly the changed rows, and both tracker layouts map to the same columns. The warehouse has 131 dbt tests, including singular tests that the rebuilt status history ends in each project's current status, that SCD2 versions are contiguous, and that every tracker row is reconciled exactly once.
 
 ## Related
 

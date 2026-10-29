@@ -1,0 +1,22 @@
+version: 2
+sources:
+  - name: app
+    description: PMO application database, loaded incrementally by dlt (stage 2).
+    schema: raw
+    loaded_at_field: updated_at
+    tables:
+      - {name: teams}
+      - {name: people}
+      - {name: team_managers}
+      - {name: projects}
+      - {name: project_executors}
+      - {name: milestones}
+      - {name: milestone_submissions}
+      - {name: requests}
+      - {name: board_reviews}
+      - {name: board_votes}
+      - {name: meetings}
+      - {name: status_updates}
+      - {name: follow_ups}
+      - {name: project_events}
+      - {name: emails}

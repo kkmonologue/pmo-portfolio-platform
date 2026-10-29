@@ -11,6 +11,8 @@ dependencies = [
     "openpyxl>=3.1",
     "psycopg2-binary>=2.9",
     "dlt[duckdb,sql-database]>=1.4",
+    "dbt-core>=1.10,<1.11",
+    "dbt-duckdb>=1.9.4,<1.10",
 ]
 
 [dependency-groups]

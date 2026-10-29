@@ -1,0 +1,18 @@
+version: 2
+
+models:
+  - name: stg_tracker__rows
+    description: Legacy tracker rows, typed. Text dates parsed, old statuses mapped, pasted duplicates flagged.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [snapshot_week, sheet_name, source_row]
+    columns:
+      - name: snapshot_week
+        data_tests: [not_null]
+      - name: project_ref
+        data_tests: [not_null]
+      - name: legacy_status
+        description: Old label as typed; blank in a few rows.
+        data_tests:
+          - relationships: {arguments: {to: ref('tracker_status_map'), field: legacy_status}}

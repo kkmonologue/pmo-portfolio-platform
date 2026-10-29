@@ -1,0 +1,7 @@
+version: 2
+sources:
+  - name: tracker
+    description: Legacy Excel project tracker, one row per sheet row per weekly file, all text (stage 2).
+    schema: raw
+    tables:
+      - {name: tracker_rows}

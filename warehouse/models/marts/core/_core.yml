@@ -1,0 +1,97 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: Calendar 2024-2027 with ISO weeks and which project meeting falls on each Thursday.
+    columns:
+      - name: date_day
+        data_tests: [unique, not_null]
+
+  - name: dim_team
+    description: Teams with office (front / middle / pmo), region and current manager.
+    columns:
+      - name: team_id
+        data_tests: [unique, not_null]
+      - name: team_code
+        data_tests: [unique, not_null]
+
+  - name: dim_person
+    description: Everyone who has worked in the organisation, including people who left.
+    columns:
+      - name: person_id
+        data_tests: [unique, not_null]
+
+  - name: dim_project
+    description: Current attributes of every live project (soft-deleted projects excluded).
+    columns:
+      - name: project_id
+        data_tests: [unique, not_null]
+      - name: project_code
+        data_tests: [unique, not_null]
+      - name: team_code
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_team'), field: team_code}}
+      - name: owner_id
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_person'), field: person_id}}
+
+  - name: dim_project_history
+    description: >
+      SCD type 2. One row per version of a project; a new version starts when status, owner or planned end changes.
+      Use `valid_from <= t and (valid_to > t or valid_to is null)` to see the portfolio as it was at time t.
+    columns:
+      - name: project_version_key
+        data_tests: [unique, not_null]
+      - name: project_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_project'), field: project_id}}
+      - name: status
+        data_tests: [not_null]
+      - name: owner_id
+        data_tests: [not_null]
+
+  - name: fct_projects
+    description: One row per live project with delivery, change and reporting measures, evaluated on the as-of date.
+    columns:
+      - name: project_id
+        data_tests: [unique, not_null]
+      - name: outcome
+        data_tests:
+          - accepted_values: {arguments: {values: [in_flight, closed, canceled]}}
+      - name: delivery_ratio
+        description: Accepted milestones / planned (non-dropped) milestones.
+
+  - name: fct_milestones
+    description: One row per milestone of a live project.
+    columns:
+      - name: milestone_id
+        data_tests: [unique, not_null]
+      - name: project_id
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_project'), field: project_id}}
+
+  - name: fct_requests
+    description: One row per request version (new project, change, close) with PMO decision time.
+    columns:
+      - name: request_id
+        data_tests: [unique, not_null]
+
+  - name: fct_status_updates
+    description: One row per bi-weekly update with its meeting and whether it was posted before the meeting.
+    columns:
+      - name: update_id
+        data_tests: [unique, not_null]
+      - name: meeting_track
+        data_tests:
+          - accepted_values: {arguments: {values: [front, middle]}}
+
+  - name: fct_board_reviews
+    description: One row per board voting round on a strategic project request.
+    columns:
+      - name: review_id
+        data_tests: [unique, not_null]
+      - name: review_status
+        data_tests:
+          - accepted_values: {arguments: {values: [voting, approved, revise]}}

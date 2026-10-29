@@ -1,0 +1,8 @@
+# Run from the repository root:  uv run dbt build --project-dir warehouse --profiles-dir warehouse
+pmo:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('WAREHOUSE_PATH', 'data/warehouse.duckdb') }}"
+      threads: 4

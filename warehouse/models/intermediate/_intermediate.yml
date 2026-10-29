@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: int_as_of_date
+    description: The evaluation date for "current" figures and risk rules (var as_of_date, else the last day in the data).
+    columns:
+      - name: as_of_date
+        data_tests: [not_null]
+
+  - name: int_project_status_history
+    description: One row per period a project spent in a status, rebuilt from project_events.
+    data_tests:
+      - unique_combination: {arguments: {columns: [project_id, status_seq]}}
+    columns:
+      - name: status
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: [not_started, active, on_hold, to_report, closed, canceled]}}
+
+  - name: int_project_owner_history
+    description: One row per period a person owned a project.
+    columns:
+      - name: owner_id
+        data_tests: [not_null]
+
+  - name: int_milestone_evidence
+    description: Evidence submissions per milestone (count, returns, first submission, review time).
+    columns:
+      - name: milestone_id
+        data_tests: [unique, not_null]
+
+  - name: int_tracker_rows_matched
+    description: Non-duplicate tracker rows with their team (by sheet name prefix) and project (by system or legacy code).
+    columns:
+      - name: match_method
+        data_tests:
+          - accepted_values: {arguments: {values: [project_code, legacy_code, unmatched]}}
+      - name: sheet_team_id
+        description: Every sheet must resolve to a team, including names Excel cut at 31 characters.
+        data_tests: [not_null]
+
+  - name: int_request_cycle_times
+    description: Request versions with PMO decision time in days.
+    columns:
+      - name: request_id
+        data_tests: [unique, not_null]

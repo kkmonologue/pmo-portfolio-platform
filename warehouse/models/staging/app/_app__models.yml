@@ -1,0 +1,164 @@
+version: 2
+
+models:
+  - name: stg_app__teams
+    description: Teams. office = front (regional teams), middle (HQ functions) or pmo.
+    columns:
+      - name: team_id
+        data_tests: [unique, not_null]
+      - name: team_code
+        data_tests: [unique, not_null]
+      - name: office
+        data_tests:
+          - accepted_values: {arguments: {values: [front, middle, pmo]}}
+
+  - name: stg_app__people
+    columns:
+      - name: person_id
+        data_tests: [unique, not_null]
+      - name: email
+        data_tests: [not_null]
+      - name: role
+        data_tests:
+          - accepted_values: {arguments: {values: [pmo, manager, member, viewer]}}
+      - name: home_team_id
+        data_tests:
+          - relationships: {arguments: {to: ref('stg_app__teams'), field: team_id}}
+
+  - name: stg_app__team_managers
+    columns:
+      - name: team_manager_id
+        data_tests: [unique, not_null]
+      - name: person_id
+        data_tests:
+          - relationships: {arguments: {to: ref('stg_app__people'), field: person_id}}
+
+  - name: stg_app__projects
+    description: Latest state of every project, including soft-deleted ones (is_deleted).
+    columns:
+      - name: project_id
+        data_tests: [unique, not_null]
+      - name: project_code
+        data_tests: [unique, not_null]
+      - name: status
+        data_tests:
+          - accepted_values: {arguments: {values: [not_started, active, on_hold, to_report, closed, canceled]}}
+      - name: strategic_level
+        data_tests:
+          - accepted_values: {arguments: {values: [S, A, B]}}
+      - name: team_id
+        data_tests:
+          - relationships: {arguments: {to: ref('stg_app__teams'), field: team_id}}
+      - name: owner_id
+        data_tests:
+          - relationships: {arguments: {to: ref('stg_app__people'), field: person_id}}
+      - name: extension_count
+        data_tests: [not_null]
+
+  - name: stg_app__project_executors
+    columns:
+      - name: executor_id
+        data_tests: [unique, not_null]
+      - name: project_id
+        data_tests:
+          - relationships: {arguments: {to: ref('stg_app__projects'), field: project_id}}
+
+  - name: stg_app__milestones
+    columns:
+      - name: milestone_id
+        data_tests: [unique, not_null]
+      - name: project_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('stg_app__projects'), field: project_id}}
+      - name: milestone_status
+        data_tests:
+          - accepted_values: {arguments: {values: [open, submitted, returned, accepted, dropped]}}
+
+  - name: stg_app__milestone_submissions
+    columns:
+      - name: submission_id
+        data_tests: [unique, not_null]
+      - name: milestone_id
+        data_tests:
+          - relationships: {arguments: {to: ref('stg_app__milestones'), field: milestone_id}}
+      - name: review_status
+        data_tests:
+          - accepted_values: {arguments: {values: [pending, accepted, returned]}}
+
+  - name: stg_app__requests
+    description: Every version of every request; payload fields unpacked into columns.
+    columns:
+      - name: request_id
+        data_tests: [unique, not_null]
+      - name: request_kind
+        data_tests:
+          - accepted_values: {arguments: {values: [new, change, close]}}
+      - name: request_status
+        data_tests:
+          - accepted_values: {arguments: {values: [pending, approved, returned, rejected, pre_approved]}}
+
+  - name: stg_app__board_reviews
+    columns:
+      - name: review_id
+        data_tests: [unique, not_null]
+      - name: request_id
+        data_tests:
+          - relationships: {arguments: {to: ref('stg_app__requests'), field: request_id}}
+
+  - name: stg_app__board_votes
+    columns:
+      - name: vote_id
+        data_tests: [unique, not_null]
+      - name: review_id
+        data_tests:
+          - relationships: {arguments: {to: ref('stg_app__board_reviews'), field: review_id}}
+      - name: vote
+        data_tests:
+          - accepted_values: {arguments: {values: ['yes', 'no']}}
+
+  - name: stg_app__meetings
+    columns:
+      - name: meeting_id
+        data_tests: [unique, not_null]
+      - name: meeting_track
+        data_tests:
+          - accepted_values: {arguments: {values: [front, middle]}}
+
+  - name: stg_app__status_updates
+    columns:
+      - name: update_id
+        data_tests: [unique, not_null]
+      - name: project_id
+        data_tests:
+          - relationships: {arguments: {to: ref('stg_app__projects'), field: project_id}}
+      - name: meeting_id
+        data_tests:
+          - relationships: {arguments: {to: ref('stg_app__meetings'), field: meeting_id}}
+
+  - name: stg_app__follow_ups
+    columns:
+      - name: follow_up_id
+        data_tests: [unique, not_null]
+      - name: follow_up_code
+        data_tests: [unique, not_null]
+      - name: follow_up_type
+        data_tests:
+          - accepted_values: {arguments: {values: [incubate, postclose, monitor]}}
+
+  - name: stg_app__project_events
+    description: Change log of projects; the basis for status and owner history.
+    columns:
+      - name: event_id
+        data_tests: [unique, not_null]
+      - name: event_type
+        data_tests:
+          - accepted_values: {arguments: {values: [created, status, owner, end_date, executors, closed_meeting]}}
+
+  - name: stg_app__emails
+    columns:
+      - name: email_id
+        data_tests: [unique, not_null]
+      - name: email_rule
+        data_tests:
+          - accepted_values: {arguments: {values: [R1, R2, R3, R4, R5, R6, R7, R8, event]}}
