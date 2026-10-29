@@ -1,0 +1,19 @@
+services:
+  source-db:
+    # The fictional company's operational PMO database (the ETL source).
+    image: postgres:16
+    environment:
+      POSTGRES_USER: pmo
+      POSTGRES_PASSWORD: pmo
+      POSTGRES_DB: source
+    ports:
+      - "5432:5432"
+    volumes:
+      - source-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pmo -d source"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  source-data:

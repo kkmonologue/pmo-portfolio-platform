@@ -1,0 +1,27 @@
+[project]
+name = "pmo-portfolio-platform"
+version = "0.1.0"
+description = "End-to-end PMO analytics platform on fictional data: simulator, ingestion, dbt, orchestration, LLM extraction."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "faker>=30",
+    "sqlalchemy>=2.0",
+    "openpyxl>=3.1",
+    "psycopg2-binary>=2.9",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.ruff]
+line-length = 140
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E731", "E501"]  # lambdas are fine; line length is left to `ruff format`
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
