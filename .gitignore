@@ -12,3 +12,5 @@ warehouse/logs/
 warehouse/dbt_packages/
 logs/
 warehouse/.user.yml
+.tmp_dagster_home_*/
+dagster_home/

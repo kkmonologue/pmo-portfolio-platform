@@ -1,6 +1,6 @@
 PG_URL ?= postgresql+psycopg2://pmo:pmo@localhost:5432/source
 
-.PHONY: install up down sim-init sim-advance sim-status sim-init-sqlite ingest ingest-full ingest-status transform docs pipeline test lint
+.PHONY: install up down sim-init sim-advance sim-status sim-init-sqlite ingest ingest-full ingest-status transform docs pipeline dagster test lint
 
 install:            ## install dependencies with uv
 	uv sync
@@ -40,6 +40,9 @@ docs:               ## generate and serve dbt docs with the lineage graph on htt
 	uv run dbt docs serve --project-dir warehouse --profiles-dir warehouse
 
 pipeline: ingest transform   ## load changes, then rebuild the warehouse
+
+dagster:            ## Dagster UI on http://localhost:3000 (assets, lineage, jobs, schedule)
+	uv run dagster dev
 
 test:
 	uv run pytest -q

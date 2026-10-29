@@ -40,4 +40,6 @@ Deliberately **not** done here: mapping old statuses (`Ongoing`, `Done`, `Close 
 - after the simulation advances two weeks, the incremental run loads exactly the new status updates, only changed projects, the new tracker weeks, and raw still matches the source (counts and every project's current status);
 - both tracker layouts map to the same columns; blank rows are skipped; sheets without a header are ignored.
 
+A rebuilt source (`simulator init`) leaves a `.full_refresh_requested` marker in the data folder. The next run then reloads everything and removes the marker, because load positions from the old source would be wrong. A test covers this case.
+
 dlt's anonymous usage telemetry is switched off in `.dlt/config.toml`.

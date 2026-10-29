@@ -27,6 +27,14 @@ jobs:
           uv run python -m simulator advance --days 14
           uv run python -m ingestion run
           uv run python -m ingestion status
+      - name: Run the Dagster jobs end to end
+        env:
+          RUNTIME__DLTHUB_TELEMETRY: "false"
+          DAGSTER_HOME: ${{ runner.temp }}/dagster_home
+        run: |
+          mkdir -p "$DAGSTER_HOME"
+          uv run dagster job execute -m orchestration.definitions -j refresh_warehouse
+          uv run dagster job execute -m orchestration.definitions -j weekly_pipeline
       - name: Build and test the warehouse (dbt)
         run: |
           uv run dbt build --project-dir warehouse --profiles-dir warehouse

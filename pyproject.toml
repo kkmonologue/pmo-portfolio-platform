@@ -13,10 +13,16 @@ dependencies = [
     "dlt[duckdb,sql-database]>=1.4",
     "dbt-core>=1.10,<1.11",
     "dbt-duckdb>=1.9.4,<1.10",
+    "dagster>=1.13.27",
+    "dagster-dbt>=0.29.27",
 ]
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = [
+    "dagster-webserver>=1.13.27",
+    "pytest>=8",
+    "ruff>=0.6",
+]
 
 [tool.ruff]
 line-length = 140
@@ -28,4 +34,8 @@ ignore = ["E731", "E501"]  # lambdas are fine; line length is left to `ruff form
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-filterwarnings = ["ignore::DeprecationWarning:dlt.*"]
+filterwarnings = ["ignore::DeprecationWarning:dlt.*", "ignore::DeprecationWarning:dagster_dbt.*", "ignore::DeprecationWarning:dbt.*", "ignore::DeprecationWarning:sqlglotrs.*"]
+
+[tool.dagster]
+module_name = "orchestration.definitions"
+code_location_name = "pmo_portfolio_platform"
