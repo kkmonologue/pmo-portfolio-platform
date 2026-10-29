@@ -47,7 +47,7 @@ flowchart LR
   O{{Dagster}} -.orchestrates.-> I & T & X
 ```
 
-See [docs/roadmap.md](docs/roadmap.md) for progress. **Stage 1 (source simulator) is done.**
+See [docs/roadmap.md](docs/roadmap.md) for progress. **Done: stage 1 (source simulator) and stage 2 (incremental ingestion into DuckDB).**
 
 ## Quick start
 
@@ -61,9 +61,14 @@ uv run python -m simulator init          # backfill 2024-07-01 → today (~3 s)
 uv run python -m simulator advance --days 7
 uv run python -m simulator status
 
-# Option B: Postgres in Docker
+# Load into the warehouse (data/warehouse.duckdb, schema "raw")
+uv run python -m ingestion run           # first run: everything
+uv run python -m simulator advance --days 7
+uv run python -m ingestion run           # later runs: only what changed
+
+# Option B: Postgres in Docker (macOS / Linux, needs make)
 make sim-init
-make sim-advance
+make ingest
 ```
 
 A backfill produces roughly 400 projects, 1,000 requests, 50 board reviews, 850 milestones, 4,000 bi-weekly updates and 7,500 reminder emails across 23 teams. It also writes the legacy Excel tracker for the last 8 weeks and a ground-truth label for every status update.
@@ -101,8 +106,12 @@ simulator/
   engine.py       day-by-day workflow simulation with an agenda of delayed actions
   excel_export.py legacy tracker workbook
   schema.py       the 15 source tables
-tests/            determinism, incremental-equals-one-shot, workflow rules
-docs/             source data reference, roadmap
+ingestion/
+  app_db.py       dlt source: 15 tables, incremental on updated_at, merged on primary key
+  tracker.py      dlt resource: weekly Excel tracker, header/layout detection
+  __main__.py     `python -m ingestion run | status`
+tests/            simulator rules, full and incremental loads, tracker parsing
+docs/             source data, ingestion, roadmap
 ```
 
 ## Tests
@@ -111,7 +120,7 @@ docs/             source data reference, roadmap
 uv run pytest -q
 ```
 
-Besides determinism, the tests check that running the simulation in chunks produces exactly the same data as one long run, and that workflow rules hold: every closed project went through a pre-approved close request and a meeting, every strategic project had a unanimous board vote, every accepted milestone has accepted evidence, and updates belong to the team's own meeting (front or middle office).
+Besides determinism, the tests check that running the simulation in chunks produces exactly the same data as one long run, and that workflow rules hold: every closed project went through a pre-approved close request and a meeting, every strategic project had a unanimous board vote, every accepted milestone has accepted evidence, and updates belong to the team's own meeting (front or middle office). The ingestion tests check that a full load matches the source, a rerun without changes loads nothing, an incremental run loads exactly the changed rows, and both tracker layouts map to the same columns.
 
 ## Related
 

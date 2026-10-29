@@ -1,0 +1,4 @@
+# dlt settings for this project
+[runtime]
+dlthub_telemetry = false
+log_level = "WARNING"

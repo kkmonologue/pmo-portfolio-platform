@@ -10,6 +10,7 @@ dependencies = [
     "sqlalchemy>=2.0",
     "openpyxl>=3.1",
     "psycopg2-binary>=2.9",
+    "dlt[duckdb,sql-database]>=1.4",
 ]
 
 [dependency-groups]
@@ -25,3 +26,4 @@ ignore = ["E731", "E501"]  # lambdas are fine; line length is left to `ruff form
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+filterwarnings = ["ignore::DeprecationWarning:dlt.*"]

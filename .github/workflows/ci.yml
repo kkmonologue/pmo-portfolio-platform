@@ -18,3 +18,12 @@ jobs:
           uv run python -m simulator init --start 2025-01-01 --end 2025-06-30
           uv run python -m simulator advance --days 14
           uv run python -m simulator status
+      - name: Smoke-test ingestion (full load, then incremental)
+        env:
+          RUNTIME__DLTHUB_TELEMETRY: "false"
+        run: |
+          uv run python -m simulator init --start 2025-01-01 --end 2025-06-30
+          uv run python -m ingestion run
+          uv run python -m simulator advance --days 14
+          uv run python -m ingestion run
+          uv run python -m ingestion status

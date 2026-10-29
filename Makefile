@@ -1,6 +1,6 @@
 PG_URL ?= postgresql+psycopg2://pmo:pmo@localhost:5432/source
 
-.PHONY: install up down sim-init sim-advance sim-status sim-init-sqlite test lint
+.PHONY: install up down sim-init sim-advance sim-status sim-init-sqlite ingest ingest-full ingest-status test lint
 
 install:            ## install dependencies with uv
 	uv sync
@@ -22,6 +22,15 @@ sim-status:
 
 sim-init-sqlite:    ## same as sim-init but no Docker needed (data/source.db)
 	uv run python -m simulator init
+
+ingest:             ## load changed rows from the source DB + new tracker weeks into data/warehouse.duckdb
+	SOURCE_DB_URL=$(PG_URL) uv run python -m ingestion run
+
+ingest-full:        ## drop the raw layer and reload everything
+	SOURCE_DB_URL=$(PG_URL) uv run python -m ingestion run --full-refresh
+
+ingest-status:
+	uv run python -m ingestion status
 
 test:
 	uv run pytest -q
