@@ -51,7 +51,7 @@ See [docs/roadmap.md](docs/roadmap.md) for progress. **Done: stage 1 (source sim
 
 ## Quick start
 
-Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/). Docker is optional.
+Requires [uv](https://docs.astral.sh/uv/). It installs the Python version pinned in `.python-version` (3.12) for this project automatically, whatever Python you have installed. Docker is optional.
 
 ```bash
 uv sync
