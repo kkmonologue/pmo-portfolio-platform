@@ -119,3 +119,20 @@ def test_meetings_alternate():
     front, middle = meeting_date("front", d), meeting_date("middle", d)
     assert front.weekday() == middle.weekday() == 3
     assert abs((front - middle).days) == 7
+
+
+def test_status_events_chain_and_end_in_current_status(world):
+    """Status events of a project must link up (old value = previous new value) in time order,
+    and the last one must be the project's current status, even when several happen on one day."""
+    eng, _ = world
+    rows = q(
+        eng,
+        "select project_id, event_type, old_value, new_value from project_events where event_type in ('created', 'status') order by project_id, event_at, event_id",
+    )
+    last = {}
+    for pid, etype, old, new in rows:
+        if etype == "status":
+            assert last.get(pid) == old, (pid, last.get(pid), old)
+        last[pid] = new
+    for pid, status in q(eng, "select project_id, status from projects"):
+        assert last[pid] == status

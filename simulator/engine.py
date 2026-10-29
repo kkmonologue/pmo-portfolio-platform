@@ -95,6 +95,17 @@ class Simulation:
             if r["status"] == "pending" and r["project_id"]:
                 self.pending_requests[r["project_id"]].add(r["request_id"])
 
+    def _ts(self, rng: random.Random, d: dt.date) -> dt.datetime:
+        """A time on day d. For the day being simulated, never earlier than the previous
+        timestamp handed out, so one day's events are ordered the way they happened."""
+        t = _ts(rng, d)
+        if d != getattr(self, "_today", None):
+            return t
+        if self._last_ts and t <= self._last_ts:
+            t = min(self._last_ts + dt.timedelta(minutes=rng.randint(1, 20)), dt.datetime.combine(d, dt.time(23, 59, 59)))
+        self._last_ts = t
+        return t
+
     def _id(self, table: str) -> int:
         self.state["next_ids"][table] = self.state["next_ids"].get(table, 0) + 1
         return self.state["next_ids"][table]
@@ -269,6 +280,7 @@ class Simulation:
 
     def _step(self, d: dt.date) -> None:
         rng = random.Random(f"{self.seed}|{d.isoformat()}")
+        self._today, self._last_ts = d, None
         weekday = d.weekday() < 5
         today = d.isoformat()
         due = sorted((a for a in self.state["agenda"] if a[0] <= today), key=lambda a: (a[0], a[1]))
@@ -367,7 +379,7 @@ class Simulation:
             return
         applicant = rng.choice(staff)
         owner = applicant if rng.random() < 0.7 else rng.choice(staff)
-        when = _ts(rng, d)
+        when = self._ts(rng, d)
         if rng.random() < C.PMO_DIRECT_SHARE:
             payload = self._plan_payload(rng, d, team, owner["person_id"], rng.choice(self._pmo_ids()))
             self._create_project(rng, d, when, team, payload, request=None)
@@ -377,7 +389,7 @@ class Simulation:
         self._submit(rng, d, "new", team["team_id"], None, payload, applicant["person_id"], None, 1, "New project request")
 
     def _submit(self, rng, d, kind, team_id, project_id, payload, by, change_types, version, reason) -> dict:
-        when = _ts(rng, d)
+        when = self._ts(rng, d)
         r = self._new(
             "requests",
             when,
@@ -404,7 +416,7 @@ class Simulation:
         return r
 
     def _decide(self, rng, d, r, status, comment=None) -> dt.datetime:
-        when = _ts(rng, d)
+        when = self._ts(rng, d)
         self._touch("requests", r, when, status=status, decided_by=rng.choice(self._pmo_ids()), decided_at=when, decision_comment=comment)
         if r["project_id"]:
             self.pending_requests[r["project_id"]].discard(r["request_id"])
@@ -504,7 +516,7 @@ class Simulation:
         rev = self.rows["board_reviews"][review_id]
         if rev["status"] != "voting" or self.rows["people"][person_id]["status"] != "active":
             return
-        when = _ts(rng, d)
+        when = self._ts(rng, d)
         yes = rng.random() < C.BOARD_YES
         comment = (
             None if yes else rng.choice(["Business case too thin.", "Overlaps with another market's project.", "Resourcing is unclear."])
@@ -527,7 +539,7 @@ class Simulation:
     def _do_board_resubmit(self, rng, d, review_id) -> None:
         rev = self.rows["board_reviews"][review_id]
         r = self.rows["requests"][rev["request_id"]]
-        self._start_board_review(rng, d, _ts(rng, d), r, json.loads(r["payload"]), rev["round"] + 1)
+        self._start_board_review(rng, d, self._ts(rng, d), r, json.loads(r["payload"]), rev["round"] + 1)
 
     # ------------------------------------------------------------------ projects
     def _code(self, team: dict, d: dt.date, prefix: str = "") -> str:
@@ -610,7 +622,7 @@ class Simulation:
         p = self.rows["projects"][project_id]
         if p["status"] != "not_started":
             return
-        when = _ts(rng, d)
+        when = self._ts(rng, d)
         shift = (d - dt.date.fromisoformat(payload["start"])).days + rng.randint(0, 20)
         ms = [{**m, "due": (dt.date.fromisoformat(m["due"]) + dt.timedelta(days=shift)).isoformat()} for m in payload["milestones"]]
         start = dt.date.fromisoformat(payload["start"]) + dt.timedelta(days=shift)
@@ -666,7 +678,7 @@ class Simulation:
 
     # ------------------------------------------------------------------ daily project logic
     def _advance(self, rng: random.Random, d: dt.date, p: dict, lat: dict) -> None:
-        when = _ts(rng, d)
+        when = self._ts(rng, d)
         if p["status"] == "not_started":
             if p["start_date"] and p["start_date"] <= d:
                 self._set_status(p, when, "active")
@@ -854,7 +866,7 @@ class Simulation:
         m = self.rows["milestones"][s["milestone_id"]]
         if m["status"] != "submitted":
             return
-        when = _ts(rng, d)
+        when = self._ts(rng, d)
         if rng.random() < C.EVIDENCE_ACCEPT:
             self._touch(
                 "milestone_submissions", s, when, review_status="accepted", reviewed_by=rng.choice(self._pmo_ids()), reviewed_at=when
@@ -927,7 +939,7 @@ class Simulation:
         ]
         presented = [p for p in queue if rng.random() < C.OWNER_READY_TO_PRESENT][: C.CLOSE_REVIEWS_PER_MEETING]
         for p in presented:
-            when = _ts(rng, d)
+            when = self._ts(rng, d)
             team = self._team(p["team_id"])
             if rng.random() < C.CLOSE_AT_MEETING:
                 self._event(p, when, None, "closed_meeting", None, None, f"{track} meeting {d}")
@@ -957,7 +969,7 @@ class Simulation:
         p = self.rows["projects"][project_id]
         if p["status"] != "on_hold":
             return
-        when = _ts(rng, d)
+        when = self._ts(rng, d)
         outcome = _weighted(rng, C.HOLD_OUTCOME)
         pmo = rng.choice(self._pmo_ids())
         if outcome == "resume":
@@ -977,7 +989,7 @@ class Simulation:
 
     # ------------------------------------------------------------------ follow-ups, people, reminders
     def _new_follow_up(self, rng, d, team, ftype, title, owner_id, source_project_id=None) -> None:
-        when = _ts(rng, d)
+        when = self._ts(rng, d)
         f = self._new(
             "follow_ups",
             when,
@@ -1014,7 +1026,7 @@ class Simulation:
         f = self.rows["follow_ups"][follow_up_id]
         if f["status"] != "open":
             return
-        when = _ts(rng, d)
+        when = self._ts(rng, d)
         converted = None
         owner = self._person(f["owner_id"])
         if f["follow_up_type"] == "incubate" and rng.random() < 0.3 and owner and owner["status"] == "active":
@@ -1025,7 +1037,7 @@ class Simulation:
         self._touch("follow_ups", f, when, status="closed", closed_on=d, converted_project_id=converted)
 
     def _departure(self, rng, d) -> None:
-        when = _ts(rng, d)
+        when = self._ts(rng, d)
         staff = sorted(
             (p for p in self.rows["people"].values() if p["status"] == "active" and p["role"] in ("manager", "member")),
             key=lambda p: p["person_id"],
@@ -1082,7 +1094,7 @@ class Simulation:
         self._request_change(rng, d, p, lat, "owner", payload, "Previous owner left the company")
 
     def _request_reminders(self, rng, d) -> None:
-        when = _ts(rng, d)
+        when = self._ts(rng, d)
         for rid in sorted({r for s in self.pending_requests.values() for r in s}):
             r = self.rows["requests"][rid]
             if (d - r["submitted_at"].date()).days >= 3 and self._once(f"R7|{rid}"):
@@ -1117,15 +1129,26 @@ class Simulation:
         for p in sorted(self.rows["projects"].values(), key=lambda x: x["project_id"]):
             if p["is_deleted"] or p["created_at"].date() > d:
                 continue
+            # per-project habits, stable from week to week: some new projects reach the sheet
+            # weeks late, and a few references are typed wrong every time
+            habit = random.Random(f"{self.seed}|tracker-habit|{p['project_id']}")
+            added_after = habit.randint(7, 42) if habit.random() < 0.3 else 0
+            typo = habit.random() < 0.04
+            if (d - p["created_at"].date()).days < added_after:
+                continue
             lag = rng.random() < 0.2
             status = self._status_at(p, d - dt.timedelta(days=rng.randint(14, 35)) if lag else d)
             if status in ("closed", "canceled") and p["actual_end"] and (d - p["actual_end"]).days > 120:
                 continue  # old finished projects get archived off the sheet
             u = latest.get(p["project_id"])
+            code = p["code"]
+            if typo:
+                head, _, num = code.rpartition("-")
+                code = f"{head}-{num.lstrip('0') or num}" if num.startswith("0") else f"{head}-{num[::-1]}"
             out[self._team(p["team_id"])["code"]].append(
                 {
-                    "code": p["code"],
-                    "legacy_code": p["legacy_code"],
+                    "code": code,
+                    "legacy_code": None if typo else p["legacy_code"],
                     "title": p["title"],
                     "owner": p["owner_name"],
                     "status": status,
