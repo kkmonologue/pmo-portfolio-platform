@@ -35,6 +35,10 @@ jobs:
           mkdir -p "$DAGSTER_HOME"
           uv run dagster job execute -m orchestration.definitions -j refresh_warehouse
           uv run dagster job execute -m orchestration.definitions -j weekly_pipeline
+      - name: Evaluate the rule-based extractor (no API key needed)
+        run: |
+          uv run python -m extractor eval --sample 200
+          uv run python -m extractor warehouse --extractor rules
       - name: Build and test the warehouse (dbt)
         run: |
           uv run dbt build --project-dir warehouse --profiles-dir warehouse

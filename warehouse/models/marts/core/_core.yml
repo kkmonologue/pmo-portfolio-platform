@@ -87,6 +87,17 @@ models:
         data_tests:
           - accepted_values: {arguments: {values: [front, middle]}}
 
+  - name: fct_status_update_signals
+    description: >
+      One row per extracted status update: RAG, risks, blocker and next date read from the text (stage 5), next to
+      the colour the author typed. stated_differs_from_content flags optimistic (or pessimistic) reporting.
+    columns:
+      - name: update_id
+        data_tests: [unique, not_null]
+      - name: extracted_rag
+        data_tests:
+          - accepted_values: {arguments: {values: [green, amber, red]}}
+
   - name: fct_board_reviews
     description: One row per board voting round on a strategic project request.
     columns:

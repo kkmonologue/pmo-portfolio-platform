@@ -4,12 +4,12 @@ import duckdb
 import pytest
 from dagster import AssetKey, materialize
 
-from orchestration.assets import pmo_app_simulation, raw_ingestion, raw_matches_source, warehouse_dbt
+from orchestration.assets import pmo_app_simulation, raw_ingestion, raw_matches_source, status_update_signals, warehouse_dbt
 from orchestration.definitions import defs
 from orchestration.resources import PmoSettings
 
 os.environ.setdefault("RUNTIME__DLTHUB_TELEMETRY", "false")
-ASSETS = [pmo_app_simulation, raw_ingestion, raw_matches_source, warehouse_dbt]
+ASSETS = [pmo_app_simulation, raw_ingestion, raw_matches_source, status_update_signals, warehouse_dbt]
 
 
 def test_definitions_load():
@@ -21,6 +21,9 @@ def test_definitions_load():
     stg_projects = next(k for k in keys if k.path[-1] == "stg_app__projects")
     assert AssetKey(["app", "projects"]) in graph.get(stg_projects).parent_keys
     assert {j.name for j in defs.jobs} == {"weekly_pipeline", "refresh_warehouse"}
+    # the extracted signals feed the dbt staging model, so the AI step sits inside the lineage
+    stg_signals = next(k for k in keys if k.path[-1] == "stg_extract__status_update_signals")
+    assert AssetKey(["extract", "status_update_signals"]) in graph.get(stg_signals).parent_keys
 
 
 @pytest.fixture(scope="module")
@@ -45,6 +48,11 @@ def test_first_run_backfills_and_builds_everything(runs):
     with duckdb.connect(str(data / "warehouse.duckdb"), read_only=True) as wh:
         assert wh.execute("select count(*) from marts.fct_projects").fetchone()[0] > 100
         assert wh.execute("select count(*) from marts.mart_project_risks").fetchone()[0] > 0
+        # every update got signals (rules extractor, no API needed)
+        assert (
+            wh.execute("select count(*) from marts.fct_status_update_signals").fetchone()[0]
+            == wh.execute("select count(*) from marts.fct_status_updates").fetchone()[0]
+        )
 
 
 def test_second_run_is_incremental(runs):

@@ -47,7 +47,7 @@ flowchart LR
   O{{Dagster}} -.orchestrates.-> I & T & X
 ```
 
-See [docs/roadmap.md](docs/roadmap.md) for progress. **Done: stage 1 (source simulator), stage 2 (incremental ingestion into DuckDB), stage 3 (dbt warehouse with tests) and stage 4 (Dagster orchestration).**
+See [docs/roadmap.md](docs/roadmap.md) for progress. **Done: stage 1 (source simulator), stage 2 (incremental ingestion into DuckDB), stage 3 (dbt warehouse with tests), stage 4 (Dagster orchestration) and stage 5 (LLM extraction of status updates, with evaluation).**
 
 ## Quick start
 
@@ -68,6 +68,10 @@ uv run python -m ingestion run           # later runs: only what changed
 
 # Build and test the warehouse (staging -> intermediate -> marts)
 uv run dbt build --project-dir warehouse --profiles-dir warehouse
+
+# Read the free-text updates: rule baseline (no API), then an LLM with your own free key in .env
+uv run python -m extractor eval
+uv run python -m extractor eval --extractor rules llm --provider gemini
 
 # Or run it all from Dagster: UI with lineage, jobs and a weekly schedule
 uv run dagster dev                       # http://localhost:3000
@@ -124,12 +128,13 @@ ingestion/
   app_db.py       dlt source: 15 tables, incremental on updated_at, merged on primary key
   tracker.py      dlt resource: weekly Excel tracker, header/layout detection
   __main__.py     `python -m ingestion run | status`
-orchestration/    Dagster: simulation, dlt and dbt assets in one graph; jobs; weekly schedule
+extractor/        status update -> RAG, risks, blocker, next date; rules baseline + any OpenAI-compatible LLM; evaluation
+orchestration/    Dagster: simulation, dlt, extraction and dbt assets in one graph; jobs; weekly schedule
 warehouse/        dbt project: staging -> intermediate -> marts (35 models, 131 tests)
   models/marts/core   star schema incl. SCD2 project history
   models/marts/pmo    risk findings, tracker reconciliation, team portfolio
 tests/            simulator rules, full and incremental loads, tracker parsing
-docs/             source data, ingestion, warehouse, orchestration, roadmap
+docs/             source data, ingestion, warehouse, orchestration, extraction, roadmap
 ```
 
 ## Tests
@@ -142,7 +147,7 @@ Besides determinism, the tests check that running the simulation in chunks produ
 
 ## Related
 
-- `pmo-update-extractor`: standalone tool for turning free-text project updates into structured status (in progress).
+- The extractor is self-contained: `python -m extractor extract --input updates.xlsx --text-column Comments --output signals.xlsx` works on any PMO's spreadsheet of updates, with your own risk categories (`--categories`). See [docs/extraction.md](docs/extraction.md).
 
 ## License
 

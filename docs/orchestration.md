@@ -34,17 +34,22 @@ flowchart LR
   STG2 --> INT
 ```
 
-53 assets in 6 groups (`source`, `raw`, `staging`, `intermediate`, `marts`, `reference`) and 142 asset checks.
+56 assets in 7 groups (`source`, `raw`, `ai`, `staging`, `intermediate`, `marts`, `reference`) and 148 asset checks.
 
 | Asset(s) | What runs | Metadata shown in the UI |
 |---|---|---|
 | `pmo_app_simulation` | First run: backfill from 2024-07-01 to today. Later runs: advance `days` (config, default 7). | simulated-until date, rows written per table, tracker files written |
 | `raw_ingestion` (16 assets `app/<table>`, `tracker/tracker_rows`) | The stage 2 dlt pipeline, one multi-asset. | rows loaded this run, per table |
-| `warehouse_dbt` (36 assets) | `dbt build` through dagster-dbt: every model and the seed is an asset. | dbt run results |
+| `extract/status_update_signals` (group `ai`) | Stage 5: reads new status updates with the rules (default) or an LLM (`EXTRACTOR=llm` in `.env`, at most `LLM_MAX_PER_RUN` per run). | extractor, updates extracted this run, still to do |
+| `warehouse_dbt` (38 assets) | `dbt build` through dagster-dbt: every model and the seed is an asset. | dbt run results |
 
 **Keys are chosen so the graph connects.** dagster-dbt keys a dbt source as `[source_name, table]`. The dbt project declares the raw tables as sources `app` and `tracker`, so the ingestion assets are keyed `app/<table>` and `tracker/tracker_rows`. Dagster then draws each staging model under the raw table it reads, without any manual wiring.
 
 **Groups follow the dbt folders.** A small translator puts dbt assets in groups named after their folder (`staging`, `intermediate`, `marts`) and the seed in `reference`.
+
+## One step at a time
+
+The warehouse is a single DuckDB file, which allows one writing process at a time. The project therefore uses Dagster's in-process executor: steps run one after another in one process. A version that ran the row-count check and the extraction in parallel failed on DuckDB's file lock, which is what led to this choice. With a client-server warehouse the default multiprocess executor would run independent steps in parallel.
 
 ## Checks
 

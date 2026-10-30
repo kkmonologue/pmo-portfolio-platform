@@ -1,0 +1,7 @@
+version: 2
+sources:
+  - name: extract
+    description: Signals extracted from status update text (stage 5); written by `python -m extractor warehouse` or the Dagster asset.
+    schema: extract
+    tables:
+      - name: status_update_signals

@@ -1,6 +1,6 @@
 PG_URL ?= postgresql+psycopg2://pmo:pmo@localhost:5432/source
 
-.PHONY: install up down sim-init sim-advance sim-status sim-init-sqlite ingest ingest-full ingest-status transform docs pipeline dagster test lint
+.PHONY: install up down sim-init sim-advance sim-status sim-init-sqlite ingest ingest-full ingest-status transform docs pipeline dagster extract-eval test lint
 
 install:            ## install dependencies with uv
 	uv sync
@@ -43,6 +43,9 @@ pipeline: ingest transform   ## load changes, then rebuild the warehouse
 
 dagster:            ## Dagster UI on http://localhost:3000 (assets, lineage, jobs, schedule)
 	uv run dagster dev
+
+extract-eval:       ## score the rule baseline (add "--extractor rules llm" via EXTRA= for the LLM)
+	uv run python -m extractor eval $(EXTRA)
 
 test:
 	uv run pytest -q

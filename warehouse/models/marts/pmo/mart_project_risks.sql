@@ -7,6 +7,8 @@
 --   resource   owner has left (high), no executors (mid)
 --   extension  extended extensions_mid / extensions_high times or more
 --   silence    no update for silence_low_days / silence_mid_days
+--   reported   the latest update (within silence_low_days) reads red or blocked, judged from the
+--              text by the stage 5 extractor; only present once an extraction has run
 -- Strategic projects are raised one level. Paused projects are not scored.
 with as_of as (
     select as_of_date from {{ ref('int_as_of_date') }}
@@ -24,6 +26,12 @@ overdue as (
     from {{ ref('fct_milestones') }}
     where is_overdue
     group by project_id
+),
+
+reported as (
+    select project_id, extracted_rag, extracted_blocked, extractor, posted_at
+    from {{ ref('fct_status_update_signals') }}
+    where is_latest_for_project
 ),
 
 open_deliverables as (
@@ -46,9 +54,14 @@ base as (
             when p.start_date is not null and p.planned_end > p.start_date
             then round(100 * least(1, greatest(0, (a.as_of_date - p.start_date) / (p.planned_end - p.start_date)::double)))
         end as pct_time_used,
-        round(100 * p.milestones_accepted / nullif(p.milestones_planned, 0)) as pct_delivered
+        round(100 * p.milestones_accepted / nullif(p.milestones_planned, 0)) as pct_delivered,
+        rp.extracted_rag,
+        rp.extracted_blocked,
+        rp.extractor as signal_extractor,
+        a.as_of_date - rp.posted_at::date as days_since_signal
     from projects as p
     cross join as_of as a
+    left join reported as rp using (project_id)
     left join overdue as o using (project_id)
     left join open_deliverables as d using (project_id)
 ),
@@ -90,6 +103,12 @@ findings as (
     from base where extension_count >= {{ var('extensions_mid') }}
 
     union all
+    select project_id, 'reported', 'high',
+        'latest update reads ' || case when extracted_blocked then 'blocked' else 'red' end || ' (' || signal_extractor || ')'
+    from base
+    where is_running and (extracted_rag = 'red' or extracted_blocked) and days_since_signal <= {{ var('silence_low_days') }}
+
+    union all
     select project_id, 'silence',
         case when days_since_update > {{ var('silence_mid_days') }} then 'mid' else 'low' end,
         coalesce('no update for ' || days_since_update || ' days', 'no update yet')
@@ -126,7 +145,7 @@ select
     row_number() over (
         partition by project_id
         order by case risk_level when 'high' then 0 when 'mid' then 1 else 2 end,
-            list_position(['resource', 'closure', 'delivery', 'schedule', 'deadline', 'extension', 'silence'], category)
+            list_position(['resource', 'closure', 'delivery', 'reported', 'schedule', 'deadline', 'extension', 'silence'], category)
     ) = 1 as is_main_risk,
     as_of_date
 from leveled

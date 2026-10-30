@@ -5,10 +5,10 @@
 then open http://localhost:3000.
 """
 
-from dagster import AssetSelection, DefaultScheduleStatus, Definitions, ScheduleDefinition, define_asset_job
+from dagster import AssetSelection, DefaultScheduleStatus, Definitions, ScheduleDefinition, define_asset_job, in_process_executor
 from dagster_dbt import DbtCliResource
 
-from .assets import dbt_project, pmo_app_simulation, raw_ingestion, raw_matches_source, warehouse_dbt
+from .assets import dbt_project, pmo_app_simulation, raw_ingestion, raw_matches_source, status_update_signals, warehouse_dbt
 from .resources import PmoSettings
 
 # Everything: simulate a week, load it, rebuild and test the warehouse.
@@ -34,8 +34,12 @@ weekly_schedule = ScheduleDefinition(
     description="Every Monday 06:00, before the PMO's weekly review.",
 )
 
+# DuckDB is a single file with one writer at a time, so steps run one after another in one
+# process. With a client-server warehouse (Postgres, Snowflake, ...) the default
+# multiprocess executor would run independent steps in parallel.
 defs = Definitions(
-    assets=[pmo_app_simulation, raw_ingestion, warehouse_dbt],
+    executor=in_process_executor,
+    assets=[pmo_app_simulation, raw_ingestion, status_update_signals, warehouse_dbt],
     asset_checks=[raw_matches_source],
     jobs=[weekly_pipeline, refresh_warehouse],
     schedules=[weekly_schedule],

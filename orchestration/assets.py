@@ -28,6 +28,9 @@ from dagster import (
 from dagster_dbt import DagsterDbtTranslator, DbtCliResource, DbtProject, dbt_assets
 from sqlalchemy import create_engine, text
 
+from extractor.__main__ import make_extractor
+from extractor.categories import DEFAULT_CATEGORIES
+from extractor.warehouse import extract_new
 from ingestion.__main__ import run as run_ingestion
 from ingestion.app_db import TABLES
 from simulator.api import advance_world, init_world, is_initialised
@@ -120,6 +123,34 @@ def raw_matches_source(settings: PmoSettings) -> Iterator[AssetCheckResult]:
                 severity=AssetCheckSeverity.ERROR,
                 metadata={"source_rows": n_src, "raw_rows": n_raw},
             )
+
+
+# ---------------------------------------------------------------- AI signals (stage 5)
+
+
+class ExtractionConfig(Config):
+    """Which extractor reads new status updates. 'rules' needs nothing; 'llm' needs an API key
+    in the environment (see .env.example) and processes at most `max_new` updates per run so a
+    free tier is not exhausted in one go."""
+
+    extractor: str = os.getenv("EXTRACTOR", "rules")
+    provider: str = os.getenv("LLM_PROVIDER", "gemini")
+    max_new: int = int(os.getenv("LLM_MAX_PER_RUN", "200"))
+
+
+@asset(
+    key=AssetKey(["extract", "status_update_signals"]),
+    deps=[AssetKey(["app", "status_updates"])],
+    group_name="ai",
+    kinds={"python", "duckdb"},
+    description="RAG, risks, blocker and next date read from each new status update (rules or LLM), written to extract.status_update_signals.",
+)
+def status_update_signals(context: AssetExecutionContext, config: ExtractionConfig, settings: PmoSettings) -> MaterializeResult:
+    os.environ.setdefault("DATA_DIR", settings.data_dir)
+    name, fn = make_extractor(config.extractor, config.provider, None, DEFAULT_CATEGORIES)
+    counts = extract_new(settings.warehouse_path, name, fn, config.max_new if config.extractor == "llm" else None)
+    context.log.info(f"{name}: {counts['extracted']} updates extracted, {counts['remaining']} left for later runs")
+    return MaterializeResult(metadata={"extractor": name, "extracted_this_run": counts["extracted"], "remaining": counts["remaining"]})
 
 
 # ---------------------------------------------------------------- warehouse (dbt)

@@ -1,0 +1,12 @@
+version: 2
+models:
+  - name: stg_extract__status_update_signals
+    description: Extracted signals per status update (LLM preferred over rules). Empty until an extraction has run.
+    columns:
+      - name: update_id
+        data_tests:
+          - unique
+          - relationships: {arguments: {to: ref('stg_app__status_updates'), field: update_id}}
+      - name: extracted_rag
+        data_tests:
+          - accepted_values: {arguments: {values: [green, amber, red]}}

@@ -11,7 +11,7 @@ models:
         data_tests: [unique, not_null]
       - name: category
         data_tests:
-          - accepted_values: {arguments: {values: [delivery, schedule, closure, deadline, resource, extension, silence]}}
+          - accepted_values: {arguments: {values: [delivery, schedule, closure, deadline, resource, extension, silence, reported]}}
       - name: risk_level
         data_tests:
           - accepted_values: {arguments: {values: [high, mid, low]}}
