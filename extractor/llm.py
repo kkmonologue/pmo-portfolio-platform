@@ -18,6 +18,7 @@ import json
 import os
 import re
 import sqlite3
+import sys
 import threading
 import time
 from dataclasses import dataclass
@@ -97,7 +98,7 @@ class LLMExtractor:
         rpm: int | None = None,
         categories: dict[str, dict] | None = None,
         cache_path: str | Path | None = "data/llm_cache.sqlite",
-        max_retries: int = 6,
+        max_retries: int = 10,
         timeout: float = 60.0,
         transport: httpx.BaseTransport | None = None,
     ):
@@ -142,8 +143,14 @@ class LLMExtractor:
                 time.sleep(wait)
             self._last_call = time.monotonic()
 
+    def _wait(self, seconds: float, why: str, attempt: int) -> None:
+        self.stats["retries"] += 1
+        if seconds >= 5:  # tell a person watching the terminal why nothing is happening
+            print(f"  {why}; waiting {seconds:.0f}s before retry {attempt + 1}/{self.max_retries}", file=sys.stderr)
+        time.sleep(seconds)
+
     def _chat(self, messages: list[dict]) -> str:
-        delay = 2.0
+        delay = 5.0
         for attempt in range(self.max_retries + 1):
             body = {"model": self.model, "messages": messages, "temperature": 0}
             if self._json_mode:
@@ -152,19 +159,24 @@ class LLMExtractor:
             self.stats["requests"] += 1
             try:
                 r = self.client.post("/chat/completions", json=body)
-            except httpx.TransportError:
+            except httpx.TransportError as err:
                 if attempt == self.max_retries:
-                    raise
-                self.stats["retries"] += 1
-                time.sleep(delay)
+                    raise RuntimeError(
+                        f"Could not reach {self.provider} ({err}); check your connection and rerun (finished updates are cached)"
+                    ) from err
+                self._wait(delay, "network error", attempt)
                 delay = min(delay * 2, 60)
                 continue
             if r.status_code == 429 or r.status_code >= 500:
                 if attempt == self.max_retries:
-                    r.raise_for_status()
-                self.stats["retries"] += 1
+                    what = "rate limit still exceeded" if r.status_code == 429 else "service still unavailable"
+                    raise RuntimeError(
+                        f"{self.provider} {what} after {self.max_retries} retries (HTTP {r.status_code}). This is on the provider's "
+                        "side: rerun later (finished updates are cached), or try another model with LLM_MODEL or provider."
+                    )
                 retry_after = r.headers.get("retry-after")
-                time.sleep(float(retry_after) if retry_after and retry_after.replace(".", "").isdigit() else delay)
+                seconds = float(retry_after) if retry_after and retry_after.replace(".", "").isdigit() else delay
+                self._wait(seconds, "rate limited" if r.status_code == 429 else f"{self.provider} busy (HTTP {r.status_code})", attempt)
                 delay = min(delay * 2, 60)
                 continue
             if r.status_code == 400 and self._json_mode and "response_format" in r.text:

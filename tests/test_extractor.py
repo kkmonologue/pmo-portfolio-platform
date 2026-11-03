@@ -99,7 +99,7 @@ def _client(tmp_path, responses, seen):
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(json.loads(request.content))
         status, body = responses.pop(0)
-        return httpx.Response(status, json=body, headers={"retry-after": "0"} if status == 429 else {})
+        return httpx.Response(status, json=body, headers={"retry-after": "0"} if status == 429 or status >= 500 else {})
 
     return LLMExtractor(
         provider="groq", api_key="test-key", rpm=100000, cache_path=tmp_path / "cache.sqlite", transport=httpx.MockTransport(handler)
@@ -174,3 +174,11 @@ def test_llm_explains_bad_key_and_unknown_model(tmp_path):
         _client(tmp_path, [(401, {"error": "bad key"})], []).extract("x", REF)
     with pytest.raises(RuntimeError, match="LLM_MODEL"):
         _client(tmp_path / "b", [(404, {"error": "no such model"})], []).extract("x", REF)
+
+
+def test_llm_gives_a_clear_error_when_the_provider_stays_unavailable(tmp_path):
+    llm = _client(tmp_path, [(503, {"error": "overloaded"})] * 3, [])
+    llm.max_retries = 2
+    with pytest.raises(RuntimeError, match="service still unavailable"):
+        llm.extract("some update", REF)
+    assert llm.stats["retries"] == 2
