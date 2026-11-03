@@ -76,7 +76,7 @@ The rules call 7 of 11 red projects green: they miss blockers and implied severi
 | Severity accuracy (found risks) | **1.00** | 0.84 |
 | Blocked precision / recall | 1.00 / 1.00 | 0.83 / 1.00 |
 | Next-milestone date accuracy | 0.90 | 0.85 |
-| Typed colour matches the content (reference) | 0.89 | 0.89 |
+| Typed colour matches the content (reference) | 0.89 | 0.90 |
 
 RAG confusion:
 
