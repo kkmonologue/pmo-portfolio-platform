@@ -6,7 +6,7 @@ Two extractors share one interface:
 
 | | `rules` | `llm` |
 |---|---|---|
-| How | keyword lists, regular expressions, a date parser | any OpenAI-compatible chat API: Gemini, Groq, Mistral, Ollama (local) |
+| How | keyword lists, regular expressions, a date parser | any OpenAI-compatible chat API: Gemini, Groq, Mistral, DeepSeek, Kimi, Ollama (local) |
 | Needs | nothing | an API key in `.env` (or Ollama running locally) |
 | Role | baseline and fallback; used in CI | the real extractor |
 
@@ -62,7 +62,7 @@ Run `uv run python -m extractor eval --extractor rules llm --provider gemini` wi
 
 ## LLM client details (`extractor/llm.py`)
 
-- **Provider-agnostic.** Presets for `gemini`, `groq`, `mistral` and `ollama`; any other OpenAI-compatible endpoint works with `LLM_BASE_URL`. Model names change, so override with `LLM_MODEL`.
+- **Provider-agnostic.** Presets for `gemini`, `groq`, `mistral`, `deepseek`, `kimi` and `ollama`; any other OpenAI-compatible endpoint works with `LLM_BASE_URL`. Model names change, so override with `LLM_MODEL`.
 - **Validated output.** Temperature 0, JSON mode where supported (the client drops it automatically if a provider rejects it), pydantic validation, one repair round-trip on invalid JSON. Unknown categories become `other`. If parsing still fails, the result is empty and counted as a failure, not cached.
 - **Built for free tiers.** Requests-per-minute limiter, retries with backoff on 429 / 5xx honouring `Retry-After`, a SQLite cache keyed by endpoint, model, prompt version and input, and `--max-new` / `LLM_MAX_PER_RUN` to spread a backlog over several runs.
 - **Clear errors.** A rejected key or an unknown model name gives a message that says what to change in `.env`.

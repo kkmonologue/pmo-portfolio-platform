@@ -146,7 +146,9 @@ def main() -> None:
     load_dotenv()
     ap = argparse.ArgumentParser(prog="extractor", description="Structured signals from free-text project status updates")
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--provider", default=os.getenv("LLM_PROVIDER", "gemini"), help="gemini | groq | mistral | ollama")
+    common.add_argument(
+        "--provider", default=os.getenv("LLM_PROVIDER", "gemini"), help="gemini | groq | mistral | deepseek | kimi | ollama"
+    )
     common.add_argument("--model", default=None, help="override the provider's default model")
     common.add_argument("--rpm", type=int, default=None, help="max requests per minute")
     common.add_argument("--categories", default=None, help="JSON file with your own risk categories")
