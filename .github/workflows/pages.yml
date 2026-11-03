@@ -1,13 +1,11 @@
 name: Portal on GitHub Pages
 
 # Builds the whole pipeline from scratch (simulate -> load -> extract -> dbt build), exports the
-# portal as static files and publishes it. Runs on every push to main and every Monday morning,
-# so the live demo always shows "today" in the simulated company.
+# portal as static files and publishes it. Runs on every push to main; the simulated company is
+# backfilled up to the day of the build. Can also be started by hand from the Actions tab.
 on:
   push:
     branches: [main]
-  schedule:
-    - cron: "17 5 * * 1"
   workflow_dispatch:
 
 permissions:

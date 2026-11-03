@@ -40,7 +40,7 @@ Clicking any project opens a drawer with its summary and open risks, milestones 
 
 ## Live demo
 
-`.github/workflows/pages.yml` builds everything from scratch on every push to `main` and every Monday morning (simulate → load → extract with the rules → `dbt build` → export) and publishes `site/` to GitHub Pages. Because the simulator backfills up to the day it runs, the demo always shows "today" in the fictional company.
+`.github/workflows/pages.yml` builds everything from scratch on every push to `main` (simulate → load → extract with the rules → `dbt build` → export) and publishes `site/` to GitHub Pages. The simulator backfills up to the day of the build, so the demo's "today" is the date of the last push.
 
 To switch it on in a fork: **Settings → Pages → Build and deployment → Source: GitHub Actions**, then run the workflow.
 
