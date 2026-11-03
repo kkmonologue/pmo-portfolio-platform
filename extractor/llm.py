@@ -44,7 +44,7 @@ class Provider:
 # Model names change over time: check your provider's console and override with LLM_MODEL.
 PROVIDERS = {
     "gemini": Provider("https://generativelanguage.googleapis.com/v1beta/openai", "GEMINI_API_KEY", "gemini-3.8-flash", 10),
-    "groq": Provider("https://api.groq.com/openai/v1", "GROQ_API_KEY", "openai/gpt-oss-120b", 30),
+    "groq": Provider("https://api.groq.com/openai/v1", "GROQ_API_KEY", "openai/gpt-oss-120b", 6),  # free tier: 8K tokens/min
     "mistral": Provider("https://api.mistral.ai/v1", "MISTRAL_API_KEY", "mistral-small-latest", 30),
     "deepseek": Provider("https://api.deepseek.com", "DEEPSEEK_API_KEY", "deepseek-flash", 60),
     "kimi": Provider("https://api.moonshot.ai/v1", "MOONSHOT_API_KEY", "kimi-k3", 20),
