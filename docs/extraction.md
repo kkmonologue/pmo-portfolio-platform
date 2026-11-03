@@ -17,7 +17,7 @@ Two extractors share one interface:
 uv run python -m extractor eval
 
 # Add your key: copy .env.example to .env and fill in GEMINI_API_KEY (or GROQ_API_KEY, ...)
-uv run python -m extractor eval --extractor rules llm --provider gemini --sample 300
+uv run python -m extractor eval --extractor rules llm --provider groq --sample 100
 
 # Any spreadsheet of updates, any company
 uv run python -m extractor extract --input updates.xlsx --text-column Comments --date-column Date --output signals.xlsx
@@ -42,23 +42,62 @@ The report goes to `data/eval/report.md`, with per-update errors in `data/eval/r
 
 ## Results
 
-### Rule-based baseline
+Run on 2026-11-03: rules versus `openai/gpt-oss-120b` on Groq's free tier. The simulated set was sampled down to 100 (same stratification) to fit the free tier's daily token budget.
 
-| Metric | Simulated (n = 300) | Challenge (n = 29) |
+### Challenge set (n = 29): realistic phrasing
+
+| Metric | rules | LLM (gpt-oss-120b) |
 |---|---|---|
-| RAG accuracy | 0.99 | 0.59 |
-| RAG macro-F1 | 0.99 | 0.56 |
-| Risk precision / recall / F1 | 0.88 / 0.87 / 0.87 | 0.75 / 0.15 / 0.25 |
-| Severity accuracy (found risks) | 0.99 | 1.00 |
-| Blocked precision / recall | 1.00 / 1.00 | 0.00 / 0.00 |
-| Next-milestone date accuracy | 0.94 | 0.90 |
-| Typed colour matches the content (reference) | 0.83 | 0.00 |
+| RAG accuracy | 0.59 | **0.97** |
+| RAG macro-F1 | 0.56 | **0.95** |
+| Risk precision / recall / F1 | 0.75 / 0.15 / 0.25 | 0.70 / **0.70** / **0.70** |
+| Severity accuracy (found risks) | 1.00 | 0.86 |
+| Blocked precision / recall | 0.00 / 0.00 | 0.57 / **1.00** |
+| Next-milestone date accuracy | 0.90 | 0.85 |
+| Date missing | 0.05 | 0.15 |
 
-Keywords are near-perfect on template text and collapse on real-sounding text: they find 15% of risks and no blockers on the challenge set. That gap is the case for an LLM. And the colour authors type is wrong one time in six even on simulated data, so reading the content matters.
+RAG confusion (rows = truth, columns = extracted):
 
-### LLM
+| | rules: green | amber | red | LLM: green | amber | red |
+|---|---|---|---|---|---|---|
+| **green** | 11 | 1 | 1 | 13 | 0 | 0 |
+| **amber** | 2 | 3 | 0 | 0 | 4 | 1 |
+| **red** | 7 | 1 | 3 | 0 | 0 | 11 |
 
-Run `uv run python -m extractor eval --extractor rules llm --provider gemini` with your own key. The report puts both extractors side by side on both sets. Responses are cached in `data/llm_cache.sqlite`, so rerunning the report costs nothing.
+The rules call 7 of 11 red projects green: they miss blockers and implied severity. The LLM gets 28 of 29 right, finds every blocker, and recovers 70% of risks instead of 15%.
+
+### Simulated set (n = 100): template text
+
+| Metric | rules | LLM (gpt-oss-120b) |
+|---|---|---|
+| RAG accuracy | **0.96** | 0.86 |
+| RAG macro-F1 | **0.95** | 0.85 |
+| Risk precision / recall / F1 | 0.82 / 0.85 / 0.83 | **0.91 / 0.94 / 0.92** |
+| Severity accuracy (found risks) | **1.00** | 0.84 |
+| Blocked precision / recall | 1.00 / 1.00 | 0.83 / 1.00 |
+| Next-milestone date accuracy | 0.90 | 0.85 |
+| Typed colour matches the content (reference) | 0.89 | 0.89 |
+
+RAG confusion:
+
+| | rules: green | amber | red | LLM: green | amber | red |
+|---|---|---|---|---|---|---|
+| **green** | 56 | 1 | 2 | 47 | 10 | 2 |
+| **amber** | 0 | 22 | 0 | 0 | 21 | 1 |
+| **red** | 1 | 0 | 18 | 0 | 1 | 18 |
+
+### What this says
+
+- **The rules only work on text written like their keywords.** Near-perfect on templates, 0.59 on realistic phrasing, and no blockers found at all. The LLM holds up on both.
+- **The LLM finds risks better everywhere** (F1 0.92 and 0.70 against 0.83 and 0.25).
+- **Its weakness is severity, and it errs on the cautious side.** Nearly all its RAG errors on simulated data are green updates read as amber (10 of 14). They come from rating a minor risk as medium, which the RAG definition turns into amber. For a PMO an extra amber is cheaper than a missed red, but it's the next thing to fix: give the prompt a few labelled severity examples, then re-run.
+- **Practical setup:** the LLM as the extractor, the rules as the free fallback when no key is set or the API is down. That's how the platform is wired.
+
+Reproduce: `uv run python -m extractor eval --extractor rules llm --provider groq --sample 100` (about 25 minutes on the free tier; cached afterwards). Per-update errors are in `data/eval/results.json`.
+
+### Running it on free tiers
+
+Gemini's free tier for the newest Flash model failed this run: repeated 503 (overloaded) and then a daily quota far below the ~330 requests needed. Groq's free tier (no card) worked, at 6 requests per minute to stay under its 8K tokens-per-minute limit. DeepSeek and Kimi are paid but cost cents for the whole evaluation.
 
 ## LLM client details (`extractor/llm.py`)
 

@@ -49,6 +49,8 @@ flowchart LR
 
 See [docs/roadmap.md](docs/roadmap.md) for progress. **Done: stage 1 (source simulator), stage 2 (incremental ingestion into DuckDB), stage 3 (dbt warehouse with tests), stage 4 (Dagster orchestration) and stage 5 (LLM extraction of status updates, with evaluation).**
 
+**Stage 5 result.** On 29 hand-written status updates, an open-weight LLM (gpt-oss-120b on Groq's free tier) gets the RAG status right 97% of the time against 59% for a keyword baseline, finds 70% of risks instead of 15%, and catches every blocker the rules miss. On simulated text its weak spot is severity: it reads some green updates as amber. Details in [docs/extraction.md](docs/extraction.md).
+
 ## Quick start
 
 Requires [uv](https://docs.astral.sh/uv/). It installs the Python version pinned in `.python-version` (3.12) for this project automatically, whatever Python you have installed. Docker is optional.
@@ -71,7 +73,7 @@ uv run dbt build --project-dir warehouse --profiles-dir warehouse
 
 # Read the free-text updates: rule baseline (no API), then an LLM with your own free key in .env
 uv run python -m extractor eval
-uv run python -m extractor eval --extractor rules llm --provider gemini
+uv run python -m extractor eval --extractor rules llm --provider groq --sample 100
 
 # Or run it all from Dagster: UI with lineage, jobs and a weekly schedule
 uv run dagster dev                       # http://localhost:3000
