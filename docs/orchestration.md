@@ -45,6 +45,8 @@ flowchart LR
 
 **Keys are chosen so the graph connects.** dagster-dbt keys a dbt source as `[source_name, table]`. The dbt project declares the raw tables as sources `app` and `tracker`, so the ingestion assets are keyed `app/<table>` and `tracker/tracker_rows`. Dagster then draws each staging model under the raw table it reads, without any manual wiring.
 
+**The dbt manifest is rebuilt when it's out of date.** dagster-dbt learns which models exist from `warehouse/target/manifest.json`. When loading, the code re-parses the dbt project if that file is missing or older than any file in it. Otherwise a manifest left over from an earlier `dbt build` (for example, after a `git pull` that added models) would hide the new models from Dagster.
+
 **Groups follow the dbt folders.** A small translator puts dbt assets in groups named after their folder (`staging`, `intermediate`, `marts`) and the seed in `reference`.
 
 ## One step at a time

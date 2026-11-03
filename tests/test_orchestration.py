@@ -70,3 +70,26 @@ def test_second_run_is_incremental(runs):
     assert loaded(second, teams) == 0  # nothing changed there
     assert 0 < loaded(second, updates) < loaded(first, updates)
     assert all(c.passed for c in second.get_asset_check_evaluations())
+
+
+def test_stale_dbt_manifest_is_detected(tmp_path):
+    """A manifest older than the dbt project (e.g. after a git pull) must be rebuilt, or Dagster
+    would not see new models."""
+    import time
+    from types import SimpleNamespace
+
+    from orchestration.assets import _manifest_is_stale
+
+    (tmp_path / "models").mkdir()
+    (tmp_path / "dbt_project.yml").write_text("name: x")
+    model = tmp_path / "models" / "m.sql"
+    model.write_text("select 1")
+    manifest = tmp_path / "target" / "manifest.json"
+    project = SimpleNamespace(project_dir=tmp_path, manifest_path=manifest)
+    assert _manifest_is_stale(project)  # missing
+    manifest.parent.mkdir()
+    manifest.write_text("{}")
+    assert not _manifest_is_stale(project)  # newer than every project file
+    future = time.time() + 60
+    os.utime(model, (future, future))  # a model changed after the manifest was built
+    assert _manifest_is_stale(project)

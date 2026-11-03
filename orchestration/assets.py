@@ -156,9 +156,26 @@ def status_update_signals(context: AssetExecutionContext, config: ExtractionConf
 # ---------------------------------------------------------------- warehouse (dbt)
 
 dbt_project = DbtProject(project_dir=REPO_ROOT / "warehouse", profiles_dir=REPO_ROOT / "warehouse")
+
+
+def _manifest_is_stale(project: DbtProject) -> bool:
+    """True if the manifest is missing or older than any file of the dbt project. A manifest left
+    over from an earlier version would hide new models from Dagster."""
+    manifest = Path(project.manifest_path)
+    if not manifest.exists():
+        return True
+    built = manifest.stat().st_mtime
+    root = Path(project.project_dir)
+    sources = [
+        root / "dbt_project.yml",
+        *(f for d in ("models", "seeds", "macros", "tests", "analyses") for f in (root / d).rglob("*") if f.is_file()),
+    ]
+    return any(f.stat().st_mtime > built for f in sources if f.exists())
+
+
 dbt_project.prepare_if_dev()
-if not Path(dbt_project.manifest_path).exists():
-    # outside `dagster dev` (tests, CI, a fresh clone) parse the project once to get the manifest
+if _manifest_is_stale(dbt_project):
+    # outside `dagster dev` (tests, CI, a fresh clone, after a git pull) re-parse to get a current manifest
     dbt_project.preparer.prepare(dbt_project)
 
 
