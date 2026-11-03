@@ -1,15 +1,11 @@
 import os
 
 import duckdb
-import pytest
-from dagster import AssetKey, materialize
+from dagster import AssetKey
 
-from orchestration.assets import pmo_app_simulation, raw_ingestion, raw_matches_source, status_update_signals, warehouse_dbt
 from orchestration.definitions import defs
-from orchestration.resources import PmoSettings
 
-os.environ.setdefault("RUNTIME__DLTHUB_TELEMETRY", "false")
-ASSETS = [pmo_app_simulation, raw_ingestion, raw_matches_source, status_update_signals, warehouse_dbt]
+# the `runs` fixture (two full pipeline runs in a temporary folder) lives in conftest.py
 
 
 def test_definitions_load():
@@ -24,20 +20,6 @@ def test_definitions_load():
     # the extracted signals feed the dbt staging model, so the AI step sits inside the lineage
     stg_signals = next(k for k in keys if k.path[-1] == "stg_extract__status_update_signals")
     assert AssetKey(["extract", "status_update_signals"]) in graph.get(stg_signals).parent_keys
-
-
-@pytest.fixture(scope="module")
-def runs(tmp_path_factory):
-    data = tmp_path_factory.mktemp("dagster_data")
-    resources = {
-        "settings": PmoSettings(data_dir=str(data)),
-        "dbt": defs.resources["dbt"],
-    }
-    first = materialize(ASSETS, resources=resources, raise_on_error=False)
-    second = materialize(
-        ASSETS, resources=resources, raise_on_error=False, run_config={"ops": {"pmo_app_simulation": {"config": {"days": 7}}}}
-    )
-    return data, first, second
 
 
 def test_first_run_backfills_and_builds_everything(runs):

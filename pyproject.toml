@@ -18,6 +18,8 @@ dependencies = [
     "httpx>=0.28.1",
     "pydantic>=2.14.1",
     "python-dotenv>=1.2.4",
+    "fastapi>=0.162.0",
+    "uvicorn>=0.54.0",
 ]
 
 [build-system]
@@ -26,7 +28,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 # installed in editable mode by `uv sync`, so every module is importable from anywhere
-packages = ["simulator", "ingestion", "extractor", "orchestration"]
+packages = ["simulator", "ingestion", "extractor", "orchestration", "portal"]
 
 [dependency-groups]
 dev = [
@@ -45,7 +47,7 @@ ignore = ["E731", "E501"]  # lambdas are fine; line length is left to `ruff form
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-filterwarnings = ["ignore::DeprecationWarning:dlt.*", "ignore::DeprecationWarning:dagster_dbt.*", "ignore::DeprecationWarning:dbt.*", "ignore::DeprecationWarning:sqlglotrs.*"]
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`", "ignore::DeprecationWarning:dlt.*", "ignore::DeprecationWarning:dagster_dbt.*", "ignore::DeprecationWarning:dbt.*", "ignore::DeprecationWarning:sqlglotrs.*"]
 
 [tool.dagster]
 module_name = "orchestration.definitions"

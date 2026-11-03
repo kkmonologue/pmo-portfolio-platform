@@ -45,3 +45,7 @@ jobs:
           uv run python -m simulator advance --days 14
           uv run python -m ingestion run
           uv run dbt build --project-dir warehouse --profiles-dir warehouse
+      - name: Export the portal and check its script parses
+        run: |
+          uv run python -m portal export --out site
+          node --check portal/static/app.js

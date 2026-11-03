@@ -1,0 +1,52 @@
+name: Portal on GitHub Pages
+
+# Builds the whole pipeline from scratch (simulate -> load -> extract -> dbt build), exports the
+# portal as static files and publishes it. Runs on every push to main and every Monday morning,
+# so the live demo always shows "today" in the simulated company.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      RUNTIME__DLTHUB_TELEMETRY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: Build the warehouse
+        run: |
+          uv run python -m simulator init
+          uv run python -m ingestion run
+          uv run python -m extractor warehouse --extractor rules
+          uv run dbt build --project-dir warehouse --profiles-dir warehouse
+      - name: Export the portal
+        run: uv run python -m portal export --out site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
