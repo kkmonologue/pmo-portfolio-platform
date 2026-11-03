@@ -98,3 +98,15 @@ def test_portal_does_not_lock_the_warehouse(warehouse, tmp_path):
     client = TestClient(create_app(copy))
     assert client.get("/api/overview.json").status_code == 200
     duckdb.connect(str(copy)).close()  # a writer can open it straight after a request
+
+
+def test_outdated_warehouse_gets_a_clear_message(tmp_path):
+    """A warehouse built before a mart existed answers 503 with what to run, not a SQL error."""
+    import duckdb
+
+    old = tmp_path / "old.duckdb"
+    with duckdb.connect(str(old)) as con:
+        con.execute("create schema marts; create table marts.fct_projects (project_id int)")
+    r = TestClient(create_app(old)).get("/api/meta.json")
+    assert r.status_code == 503
+    assert "fct_status_update_signals" in r.json()["detail"] and "dbt build" in r.json()["detail"]

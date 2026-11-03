@@ -14,6 +14,14 @@ import duckdb
 from simulator.company import COMPANY
 
 IN_FLIGHT = ("not_started", "active", "to_report", "on_hold")
+REQUIRED_MARTS = (
+    "dim_date", "dim_person", "dim_project", "dim_project_history", "dim_team", "fct_board_reviews", "fct_milestones", "fct_projects",
+    "fct_requests", "fct_status_update_signals", "fct_status_updates", "mart_project_risks", "mart_team_portfolio", "mart_tracker_reconciliation",
+)  # fmt: skip
+
+
+class WarehouseNotReady(RuntimeError):
+    """The warehouse file exists but lacks marts the portal reads (built by an older dbt project)."""
 
 
 def _clean(v):
@@ -34,6 +42,16 @@ class Portal:
         if not self.path.exists():
             raise FileNotFoundError(f"No warehouse at {self.path}; build it first (see README quick start)")
         self.con = duckdb.connect(str(self.path), read_only=True)
+        missing = sorted(
+            set(REQUIRED_MARTS)
+            - {r[0] for r in self.con.execute("select table_name from information_schema.tables where table_schema = 'marts'").fetchall()}
+        )
+        if missing:
+            self.con.close()
+            raise WarehouseNotReady(
+                f"The warehouse is missing {', '.join(missing)}: it was built by an older version of the dbt project. Rebuild it with "
+                "`uv run python -m extractor warehouse --extractor rules` and then `uv run dbt build --project-dir warehouse --profiles-dir warehouse`."
+            )
         self.as_of = self._as_of()
 
     def close(self) -> None:

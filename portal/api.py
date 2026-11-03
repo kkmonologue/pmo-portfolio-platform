@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
-from .data import PAGES, Portal
+from .data import PAGES, Portal, WarehouseNotReady
 
 STATIC = Path(__file__).parent / "static"
 
@@ -26,7 +26,7 @@ def create_app(warehouse: str | Path) -> FastAPI:
     def load(fn):
         try:
             portal = Portal(warehouse)
-        except FileNotFoundError as err:
+        except (FileNotFoundError, WarehouseNotReady) as err:
             raise HTTPException(503, str(err)) from err
         try:
             return fn(portal)

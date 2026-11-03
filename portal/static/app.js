@@ -8,7 +8,7 @@ const cache = new Map();
 function get(path) {
   if (!cache.has(path)) {
     cache.set(path, fetch(`api/${path}.json`).then((r) => {
-      if (!r.ok) throw new Error(`${r.status} ${r.statusText} for api/${path}.json`);
+      if (!r.ok) return r.json().catch(() => ({})).then((b) => { throw new Error(b.detail || `${r.status} ${r.statusText} for api/${path}.json`); });
       return r.json();
     }));
   }
@@ -699,7 +699,7 @@ function App() {
     try { localStorage.setItem("pmo-theme", t); } catch (e) { /* storage may be blocked */ }
     setTheme(t);
   };
-  if (error) return html`<div class="boot">Could not load the portal data (${String(error.message)}). Build the warehouse and run <span class="mono">python -m portal serve</span>.</div>`;
+  if (error) return html`<div class="boot"><b>Could not load the portal data.</b><p>${String(error.message)}</p></div>`;
   if (!meta) return html`<div class="boot">Loading portfolio…</div>`;
   TEAM_OFFICE = Object.fromEntries(meta.teams.map((t) => [t.code, t.office]));
   const Page = PAGES[route.view] || Overview;
